@@ -51,9 +51,21 @@ Two pieces, and the split is forced by macOS, not by taste:
 
 ## Installation
 
-### From a release (no toolchain needed)
+### One-line install (recommended)
 
-Download the latest `snapcaster-<version>-macos-universal.tar.gz` from the
+```sh
+curl -fsSL https://raw.githubusercontent.com/tsirysndr/snapcaster/main/install.sh | bash
+```
+
+This downloads the latest universal build from
+[GitHub Releases](https://github.com/tsirysndr/snapcaster/releases), ad-hoc code-signs the
+driver, installs it plus the `snapcaster` CLI, and restarts coreaudiod (it will prompt for
+`sudo`). Pin a version with `SNAPCASTER_VERSION=v0.1.0` in front of the command. macOS only —
+the script refuses to run on anything else.
+
+### From a release tarball
+
+Download `snapcaster-<version>-macos-universal.tar.gz` from the
 [releases page](https://github.com/tsirysndr/snapcaster/releases), then:
 
 ```sh
