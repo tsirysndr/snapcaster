@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  launchd LaunchAgent example for snapcaster.
+
+  This must be a per-user LaunchAgent (not a system LaunchDaemon): capturing
+  audio needs a user session and the one-time microphone permission macOS
+  grants to the app that first opens the capture device.
+
+  Install:
+    cargo install --path .   # or copy the binary to /usr/local/bin/snapcaster
+    cp dist/com.tsirysndr.snapcaster.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.tsirysndr.snapcaster.plist
+
+  Remove:
+    launchctl bootout gui/$(id -u)/com.tsirysndr.snapcaster
+
+  Adjust ProgramArguments below for your server:
+    Snapcast:   tcp://192.168.1.10:4953  or  pipe:///tmp/snapfifo
+    Squeezebox: tcp://192.168.1.10:4711  (squeezed tcp input)
+-->
+<dict>
+	<key>Label</key>
+	<string>com.tsirysndr.snapcaster</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/bin/snapcaster</string>
+		<string>--sink</string>
+		<string>tcp://127.0.0.1:4953</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>ProcessType</key>
+	<string>Interactive</string>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>SNAPCASTER_LOG</key>
+		<string>info</string>
+	</dict>
+	<key>StandardOutPath</key>
+	<string>/tmp/snapcaster.log</string>
+	<key>StandardErrorPath</key>
+	<string>/tmp/snapcaster.log</string>
+</dict>
+</plist>

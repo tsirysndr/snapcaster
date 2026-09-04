@@ -1,0 +1,10 @@
+[package]
+name = "snapcaster-driver"
+version = "0.1.0"
+edition = "2024"
+description = "Core Audio HAL AudioServerPlugIn providing the 'Snapcaster' virtual output device."
+license = "MIT"
+
+[lib]
+name = "snapcaster_driver"
+crate-type = ["cdylib"]

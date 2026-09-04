@@ -1,0 +1,23 @@
+[workspace]
+members = ["driver"]
+
+[package]
+name = "snapcaster"
+version = "0.1.0"
+edition = "2024"
+description = "macOS virtual audio output that redirects system audio to a Snapcast or Squeezebox (SlimProto) server."
+license = "MIT"
+repository = "https://github.com/tsirysndr/snapcaster"
+keywords = ["snapcast", "squeezebox", "coreaudio", "audio", "streaming"]
+categories = ["multimedia::audio", "command-line-utilities"]
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4.5", features = ["derive"] }
+cpal = "0.15"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+lto = true
+strip = true
