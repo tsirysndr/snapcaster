@@ -51,6 +51,21 @@ Two pieces, and the split is forced by macOS, not by taste:
 
 ## Installation
 
+### From a release (no toolchain needed)
+
+Download the latest `snapcaster-<version>-macos-universal.tar.gz` from the
+[releases page](https://github.com/tsirysndr/snapcaster/releases), then:
+
+```sh
+tar -xzf snapcaster-*-macos-universal.tar.gz
+cd snapcaster-*-macos-universal   # or wherever it extracted
+./install.sh                      # installs driver + CLI, restarts coreaudiod (sudo)
+```
+
+The binaries are universal (Apple Silicon + Intel). Uninstall with `./uninstall.sh`.
+
+### From source
+
 Requirements: macOS, Rust (stable), `sudo` for the driver install.
 
 ```sh

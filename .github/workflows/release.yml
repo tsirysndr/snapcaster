@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: macos-universal
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # On manual dispatch, build the tag's code rather than the branch
+          # the workflow was dispatched from.
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Both Mac architectures so we can lipo universal binaries — the
+          # .driver bundle in particular must load on Intel and Apple Silicon.
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build CLI + driver (both arches)
+        run: |
+          set -euo pipefail
+          for target in aarch64-apple-darwin x86_64-apple-darwin; do
+            cargo build --release --locked --target "$target" --bin snapcaster
+            cargo build --release --locked --target "$target" -p snapcaster-driver
+          done
+
+      - name: Assemble universal bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            version="${{ inputs.tag }}"
+          else
+            version="${GITHUB_REF_NAME}"
+          fi
+          name="snapcaster-${version}-macos-universal"
+          stage="dist/staging"
+          bundle="$stage/SnapcasterAudio.driver"
+
+          mkdir -p "$stage" "$bundle/Contents/MacOS"
+
+          # Universal CLI binary
+          lipo -create -output "$stage/snapcaster" \
+            target/aarch64-apple-darwin/release/snapcaster \
+            target/x86_64-apple-darwin/release/snapcaster
+
+          # Universal driver bundle
+          cp driver/Info.plist "$bundle/Contents/Info.plist"
+          lipo -create -output "$bundle/Contents/MacOS/SnapcasterAudio" \
+            target/aarch64-apple-darwin/release/libsnapcaster_driver.dylib \
+            target/x86_64-apple-darwin/release/libsnapcaster_driver.dylib
+          codesign --force --sign - "$bundle"
+
+          # Everything a user needs to install the prebuilt bundle
+          cp scripts/install-prebuilt.sh "$stage/install.sh"
+          cp scripts/uninstall-driver.sh "$stage/uninstall.sh"
+          cp dist/com.tsirysndr.snapcaster.plist "$stage/"
+          cp README.md LICENSE "$stage/"
+          chmod +x "$stage/install.sh" "$stage/uninstall.sh"
+
+          tar -C "$stage" -czf "dist/${name}.tar.gz" .
+          (cd dist && shasum -a 256 "${name}.tar.gz" > "${name}.tar.gz.sha256")
+          lipo -info "$stage/snapcaster" "$bundle/Contents/MacOS/SnapcasterAudio"
+          ls -lh dist
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-universal
+          path: dist/*.tar.gz*
+
+  release:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: dist/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
