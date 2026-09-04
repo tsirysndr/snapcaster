@@ -51,7 +51,20 @@ Two pieces, and the split is forced by macOS, not by taste:
 
 ## Installation
 
-### One-line install (recommended)
+### Homebrew
+
+```sh
+brew install tsirysndr/tap/snapcaster
+sudo snapcaster-install-driver   # installs the HAL driver into /Library, restarts coreaudiod
+```
+
+`brew install` puts the `snapcaster` CLI on your `PATH` and pulls in
+[squeezed](https://github.com/tsirysndr/squeezed) as a dependency. The audio driver lives in
+`/Library` and needs `sudo`, so it's a separate one-time step — `snapcaster-install-driver`
+ad-hoc code-signs the bundle, installs it, and restarts coreaudiod. Remove it later with
+`sudo snapcaster-uninstall-driver`.
+
+### One-line install
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/tsirysndr/snapcaster/main/install.sh | bash
