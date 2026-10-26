@@ -301,3 +301,8 @@ to the ring would drop other apps' audio when several play at once).
 ## License
 
 MIT
+
+## CI pipelines
+
+Portable GitHub Actions jobs use [PureScript Dagger modules](.dagger/README.md).
+See that guide for commands, caching, and the jobs that remain native.
