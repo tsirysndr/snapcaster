@@ -26,13 +26,16 @@ jobs:
           # the workflow was dispatched from.
           ref: ${{ inputs.tag || github.ref }}
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Checkout FluentCI tooling
+        uses: actions/checkout@v4
         with:
-          # Both Mac architectures so we can lipo universal binaries — the
-          # .driver bundle in particular must load on Intel and Apple Silicon.
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
-
+          ref: ${{ github.workflow_sha }}
+          path: .ci-tooling
+      - uses: fluentci-io/setup-fluentci@next
+      - uses: ./.ci-tooling/.github/actions/fluentci-toolchain
+      - name: Set up rust
+        run: fluentci run setup-rust setup --toolchain stable --targets aarch64-apple-darwin,x86_64-apple-darwin | node "$GITHUB_WORKSPACE/.ci-tooling/.fluentci/github-env.mjs"
+        shell: bash
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
@@ -89,6 +92,9 @@ jobs:
           name: macos-universal
           path: dist/*.tar.gz*
 
+    defaults:
+      run:
+        shell: bash
   release:
     name: Publish GitHub release
     needs: build
@@ -97,88 +103,28 @@ jobs:
       - name: Checkout pipeline
         uses: actions/checkout@v4
 
-      - name: Install Dagger
-        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77
+      - name: Checkout FluentCI tooling
+        uses: actions/checkout@v4
         with:
-          version: v1.0.0-beta.21
-
+          ref: ${{ github.workflow_sha }}
+          path: .ci-tooling
+      - uses: fluentci-io/setup-fluentci@next
+      - uses: ./.ci-tooling/.github/actions/fluentci-toolchain
+      - name: Set up the pinned Dagger beta with FluentCI
+        run: fluentci run --work-dir "$GITHUB_WORKSPACE/.ci-tooling" ci setup-dagger
+        shell: bash
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
-      - name: Publish release with Dagger
-        working-directory: .dagger
+      - name: Upload release assets with FluentCI
+        run: fluentci run --work-dir "$GITHUB_WORKSPACE/.ci-tooling" ci github-assets --directory "$GITHUB_WORKSPACE/dist" --tag "$RELEASE_TAG" --create=true
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
           WORKFLOW_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
-        run: dagger api call -m ci publish-release --assets ../dist --tag "$RELEASE_TAG" --token env://GH_TOKEN --run-id "$WORKFLOW_RUN"
-
-
-# Disabled until the HOMEBREW_TAP_TOKEN secret (a PAT with write access to
-# tsirysndr/homebrew-tap) is configured. Until then, update the tap's
-# Formula/snapcaster.rb manually from Formula/snapcaster.rb in this repo.
-# Re-enable by uncommenting the job below.
-#
-#  homebrew:
-#    name: Update Homebrew tap
-#    needs: [build, release]
-#    runs-on: ubuntu-latest
-#    # Needs a PAT with write access to tsirysndr/homebrew-tap, stored as the
-#    # HOMEBREW_TAP_TOKEN repo secret. Skips cleanly if the secret is unset.
-#    if: ${{ github.repository == 'tsirysndr/snapcaster' }}
-#    steps:
-#      - name: Download artifacts
-#        uses: actions/download-artifact@v4
-#        with:
-#          path: dist
-#          merge-multiple: true
-#
-#      - name: Compute version + sha256
-#        id: meta
-#        run: |
-#          set -euo pipefail
-#          version="${{ github.event.inputs.tag || github.ref_name }}"
-#          tarball="dist/snapcaster-${version}-macos-universal.tar.gz"
-#          echo "version=${version}" >> "$GITHUB_OUTPUT"
-#          echo "bare=${version#v}" >> "$GITHUB_OUTPUT"
-#          echo "sha256=$(sha256sum "$tarball" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
-#
-#      - name: Checkout tap
-#        uses: actions/checkout@v4
-#        with:
-#          repository: tsirysndr/homebrew-tap
-#          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-#          path: tap
-#
-#      - name: Render formula from the repo template
-#        run: |
-#          set -euo pipefail
-#          version="${{ steps.meta.outputs.version }}"
-#          bare="${{ steps.meta.outputs.bare }}"
-#          sha="${{ steps.meta.outputs.sha256 }}"
-#          # Start from the committed formula and bump url/version/sha to this tag.
-#          mkdir -p tap/Formula
-#          sed -E \
-#            -e "s#/download/v[0-9][^/]*/snapcaster-v[0-9][^\"]*-macos-universal\.tar\.gz#/download/${version}/snapcaster-${version}-macos-universal.tar.gz#" \
-#            -e "s/^  version \"[^\"]*\"/  version \"${bare}\"/" \
-#            -e "s/^  sha256 \"[^\"]*\"/  sha256 \"${sha}\"/" \
-#            Formula/snapcaster.rb > tap/Formula/snapcaster.rb
-#          echo "----- rendered formula -----"
-#          head -8 tap/Formula/snapcaster.rb
-#
-#      - name: Commit + push to tap
-#        run: |
-#          set -euo pipefail
-#          cd tap
-#          git config user.name "github-actions[bot]"
-#          git config user.email "github-actions[bot]@users.noreply.github.com"
-#          git add Formula/snapcaster.rb
-#          if git diff --cached --quiet; then
-#            echo "formula unchanged; nothing to push"
-#          else
-#            git commit -m "snapcaster ${{ steps.meta.outputs.version }}"
-#            git push
-#          fi
+    defaults:
+      run:
+        shell: bash
