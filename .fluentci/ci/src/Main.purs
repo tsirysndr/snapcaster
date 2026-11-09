@@ -1,7 +1,8 @@
-module Main (dagger, githubAssets, gemfury, flakehub, cachix, importNix, check, python, setupDagger) where
+module Main (dagger, githubAssets, gemfury, flakehub, cachix, importNix, check, python, setupDagger, macosRelease) where
 
 import Prelude
 import CI.Support as S
+import CI.Snapcaster as Snapcaster
 import CI.Dagger as Dagger
 import CI.Gemfury as Gemfury
 import Data.Array as A
@@ -101,3 +102,9 @@ python args = do
 -- | Install the repository-pinned Dagger beta with verified upstream checksums.
 setupDagger :: Effect Unit
 setupDagger = Dagger.setup
+
+-- | Build and package the universal macOS CLI and HAL driver in PureScript.
+-- | @param source Release source checkout.
+-- | @param version Release tag used in the archive filename.
+macosRelease :: { source :: String, version :: String } -> Effect Unit
+macosRelease = Snapcaster.macosRelease

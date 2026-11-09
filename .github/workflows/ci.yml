@@ -1,0 +1,28 @@
+name: FluentCI checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout FluentCI tooling
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .ci-tooling
+      - uses: fluentci-io/setup-fluentci@next
+      - uses: ./.ci-tooling/.github/actions/fluentci-toolchain
+      - name: Compile the PureScript release component
+        run: fluentci run --work-dir "$GITHUB_WORKSPACE/.ci-tooling" ci --help
+      - name: Test universal build and packaging contracts
+        run: node --test .ci-tooling/.fluentci/tests/release.test.mjs
+      - name: Set up Go for workflow lint
+        run: fluentci run setup-go setup --version 1.26.2 | node "$GITHUB_WORKSPACE/.ci-tooling/.fluentci/github-env.mjs"
+      - name: Check native file operations and workflow syntax
+        run: fluentci run --work-dir "$GITHUB_WORKSPACE/.ci-tooling" ci check --directory "$GITHUB_WORKSPACE"
